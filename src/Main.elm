@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import Html
 import Html.Attributes
+import Html.Events
 import Http
 import Json.Decode as Decode
 import Json.Decode.Pipeline as Pipeline
@@ -24,6 +25,12 @@ type alias AudioClip =
     , text : String
     , sound : String
     }
+
+
+type Validating
+    = NotLoaded
+    | NoClips
+    | Playing AudioClip (List AudioClip)
 
 
 getClips : Cmd Msg
@@ -56,31 +63,43 @@ decodeClip =
 
 
 type alias Model =
-    { clips : List AudioClip }
+    { validating : Validating }
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model [], getClips )
+    ( Model NotLoaded, getClips )
 
 
 
 ---- UPDATE ----
 
 
+type Vote
+    = Good
+    | Bad
+
+
 type Msg
     = NewClips (Result Http.Error (List AudioClip))
+    | SendVote Vote AudioClip
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         NewClips (Ok clipList) ->
-            let
-                _ =
-                    Debug.log "clipList" clipList
-            in
-                ( { model | clips = model.clips ++ clipList }, Cmd.none )
+            case model.validating of
+                Playing currentClip currentClipList ->
+                    ( { model | validating = Playing currentClip (currentClipList ++ clipList) }, Cmd.none )
+
+                _ ->
+                    case clipList of
+                        firstClip :: rest ->
+                            ( { model | validating = Playing firstClip rest }, Cmd.none )
+
+                        _ ->
+                            ( { model | validating = NoClips }, Cmd.none )
 
         NewClips (Err error) ->
             let
@@ -89,6 +108,23 @@ update msg model =
             in
                 ( model, Cmd.none )
 
+        SendVote vote clip ->
+            let
+                _ =
+                    Debug.log ("Sending vote for clip " ++ clip.glob) vote
+            in
+                case model.validating of
+                    Playing currentClip currentClipList ->
+                        case currentClipList of
+                            firstClip :: clipList ->
+                                ( { model | validating = Playing firstClip clipList }, Cmd.none )
+
+                            _ ->
+                                ( { model | validating = NoClips }, Cmd.none )
+
+                    _ ->
+                        Debug.crash <| "Wait, SendVote (" ++ (toString vote) ++ ") without any current clip playing?"
+
 
 
 ---- VIEW ----
@@ -96,33 +132,40 @@ update msg model =
 
 view : Model -> Html.Html Msg
 view model =
-    if List.length model.clips /= 0 then
-        Html.div []
-            [ Html.h1 [] [ Html.text "Here's a list of audio clips to validate" ]
-            , viewClips model.clips
-            ]
-    else
-        Html.div []
-            [ Html.h1 [] [ Html.text "Loading audio clips, please wait..." ]
-            ]
+    Html.div []
+        (case model.validating of
+            Playing clip clipList ->
+                [ Html.h1 [] [ Html.text "Is this sentence pronounced correctly?" ]
+                , viewClip clip
+                ]
+
+            NotLoaded ->
+                [ Html.h1 [] [ Html.text "Loading audio clips, please wait..." ]
+                ]
+
+            NoClips ->
+                [ Html.h1 [] [ Html.text "No audio clips to validate" ]
+                ]
+        )
 
 
-viewClips : List AudioClip -> Html.Html Msg
-viewClips clips =
-    clips
-        |> List.map
-            (\clip ->
-                Html.li []
-                    [ Html.audio
-                        [ Html.Attributes.preload "auto"
-                        , Html.Attributes.controls True
-                        , Html.Attributes.src clip.sound
-                        ]
-                        []
-                    , Html.text clip.text
-                    ]
-            )
-        |> Html.ul []
+viewClip : AudioClip -> Html.Html Msg
+viewClip clip =
+    Html.div []
+        [ Html.p [] [ Html.text clip.text ]
+        , Html.audio
+            [ Html.Attributes.autoplay True
+            , Html.Attributes.controls True
+            , Html.Attributes.src clip.sound
+            ]
+            []
+        , Html.button
+            [ Html.Events.onClick <| SendVote Good clip ]
+            [ Html.text "Yes, pronounced correctly" ]
+        , Html.button
+            [ Html.Events.onClick <| SendVote Bad clip ]
+            [ Html.text "No, pronounced incorrectly" ]
+        ]
 
 
 
