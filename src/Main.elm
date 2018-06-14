@@ -217,11 +217,11 @@ viewClip clip duration currentTime =
                 ]
             , Html.div []
                 [ Html.button
-                    [ Html.Events.onClick <| SendVote Good clip ]
-                    [ Html.text "Yes, pronounced correctly" ]
-                , Html.button
                     [ Html.Events.onClick <| SendVote Bad clip ]
                     [ Html.text "No, pronounced incorrectly" ]
+                , Html.button
+                    [ Html.Events.onClick <| SendVote Good clip ]
+                    [ Html.text "Yes, pronounced correctly" ]
                 ]
             ]
 
