@@ -63,12 +63,15 @@ decodeClip =
 
 
 type alias Model =
-    { validating : Validating }
+    { validating : Validating
+    , duration : Float
+    , currentTime : Float
+    }
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model NotLoaded, getClips )
+    ( Model NotLoaded 0 0, getClips )
 
 
 
@@ -83,6 +86,10 @@ type Vote
 type Msg
     = NewClips (Result Http.Error (List AudioClip))
     | SendVote Vote AudioClip
+    | DurationChange Float
+    | Play
+    | Ended
+    | TimeUpdate Float
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -125,6 +132,18 @@ update msg model =
                     _ ->
                         Debug.crash <| "Wait, SendVote (" ++ (toString vote) ++ ") without any current clip playing?"
 
+        DurationChange duration ->
+            ( { model | duration = duration }, Cmd.none )
+
+        Play ->
+            ( model, Cmd.none )
+
+        Ended ->
+            ( model, Cmd.none )
+
+        TimeUpdate currentTime ->
+            ( { model | currentTime = currentTime }, Cmd.none )
+
 
 
 ---- VIEW ----
@@ -136,7 +155,7 @@ view model =
         (case model.validating of
             Playing clip clipList ->
                 [ Html.h1 [] [ Html.text "Is this sentence pronounced correctly?" ]
-                , viewClip clip
+                , viewClip clip model.duration model.currentTime
                 ]
 
             NotLoaded ->
@@ -149,23 +168,92 @@ view model =
         )
 
 
-viewClip : AudioClip -> Html.Html Msg
-viewClip clip =
-    Html.div []
-        [ Html.p [] [ Html.text clip.text ]
-        , Html.audio
-            [ Html.Attributes.autoplay True
-            , Html.Attributes.controls True
-            , Html.Attributes.src clip.sound
+viewClip : AudioClip -> Float -> Float -> Html.Html Msg
+viewClip clip duration currentTime =
+    let
+        percentage =
+            if duration /= 0 then
+                currentTime
+                    * 100
+                    / duration
+            else
+                0
+
+        percentageAttributes =
+            (toString percentage)
+                ++ "%"
+    in
+        Html.div []
+            [ Html.audio
+                [ Html.Attributes.autoplay True
+                , Html.Attributes.src clip.sound
+
+                -- , Html.Attributes.controls True
+                , onDurationChange DurationChange
+                , onPlay Play
+                , onEnded Ended
+                , onTimeUpdate TimeUpdate
+                ]
+                []
+            , Html.div
+                [ Html.Attributes.style
+                    [ ( "padding", "10px 0" )
+                    , ( "position", "relative" )
+                    ]
+                ]
+                [ Html.div
+                    [ Html.Attributes.style
+                        [ ( "background-color", "#b7d43f" )
+                        , ( "height", "100%" )
+                        , ( "left", "0" )
+                        , ( "position", "absolute" )
+                        , ( "top", "0" )
+                        , ( "width", percentageAttributes )
+                        , ( "z-index", "-1000" )
+                        ]
+                    ]
+                    []
+                , Html.text clip.text
+                ]
+            , Html.div []
+                [ Html.button
+                    [ Html.Events.onClick <| SendVote Good clip ]
+                    [ Html.text "Yes, pronounced correctly" ]
+                , Html.button
+                    [ Html.Events.onClick <| SendVote Bad clip ]
+                    [ Html.text "No, pronounced incorrectly" ]
+                ]
             ]
-            []
-        , Html.button
-            [ Html.Events.onClick <| SendVote Good clip ]
-            [ Html.text "Yes, pronounced correctly" ]
-        , Html.button
-            [ Html.Events.onClick <| SendVote Bad clip ]
-            [ Html.text "No, pronounced incorrectly" ]
-        ]
+
+
+onDurationChange : (Float -> Msg) -> Html.Attribute Msg
+onDurationChange msg =
+    Html.Events.on "durationchange" (Decode.map msg targetDurationChange)
+
+
+targetDurationChange : Decode.Decoder Float
+targetDurationChange =
+    Decode.at [ "target", "duration" ] Decode.float
+
+
+onPlay : Msg -> Html.Attribute Msg
+onPlay msg =
+    Html.Events.on "play" (Decode.succeed msg)
+
+
+onEnded : Msg -> Html.Attribute Msg
+onEnded msg =
+    Html.Events.on "ended" (Decode.succeed msg)
+
+
+onTimeUpdate : (Float -> Msg) -> Html.Attribute Msg
+onTimeUpdate msg =
+    Html.Events.on "timeupdate" (Decode.map msg targetCurrentTime)
+
+
+targetCurrentTime : Decode.Decoder Float
+targetCurrentTime =
+    Decode.at [ "target", "currentTime" ] Decode.float
 
 
 
