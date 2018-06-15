@@ -6,6 +6,7 @@ import Html.Events
 import Http
 import Json.Decode as Decode
 import Json.Decode.Pipeline as Pipeline
+import Touch
 
 
 clips_url : String
@@ -66,12 +67,20 @@ type alias Model =
     { validating : Validating
     , duration : Float
     , currentTime : Float
+    , gesture : Touch.Gesture
+    , gestureStart : Touch.Position
+    , gesturePosition : Touch.Position
     }
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model NotLoaded 0 0, getClips )
+    ( Model NotLoaded 0 0 Touch.blanco initPosition initPosition, getClips )
+
+
+initPosition : Touch.Position
+initPosition =
+    { x = 0, y = 0 }
 
 
 
@@ -85,11 +94,14 @@ type Vote
 
 type Msg
     = NewClips (Result Http.Error (List AudioClip))
-    | SendVote Vote AudioClip
+    | SendVote Vote
     | DurationChange Float
     | Play
     | Ended
     | TimeUpdate Float
+    | SwipeStart Touch.Event
+    | Swipe Touch.Event
+    | SwipeEnd Touch.Event
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -115,10 +127,10 @@ update msg model =
             in
                 ( model, Cmd.none )
 
-        SendVote vote clip ->
+        SendVote vote ->
             let
                 _ =
-                    Debug.log ("Sending vote for clip " ++ clip.glob) vote
+                    Debug.log "Sending vote" vote
             in
                 case model.validating of
                     Playing currentClip currentClipList ->
@@ -144,6 +156,37 @@ update msg model =
         TimeUpdate currentTime ->
             ( { model | currentTime = currentTime }, Cmd.none )
 
+        SwipeStart touch ->
+            let
+                position =
+                    Touch.locate touch
+            in
+                ( { model | gestureStart = position, gesturePosition = position }, Cmd.none )
+
+        Swipe touch ->
+            let
+                gesture : Touch.Gesture
+                gesture =
+                    Touch.record touch model.gesture
+            in
+                ( { model | gesture = gesture, gesturePosition = Touch.locate touch }, Cmd.none )
+
+        SwipeEnd touch ->
+            let
+                gesture : Touch.Gesture
+                gesture =
+                    Touch.record touch model.gesture
+
+                updatedModel =
+                    { model | gesture = Touch.blanco, gestureStart = initPosition, gesturePosition = initPosition }
+            in
+                if Touch.isLeftSwipe 100 gesture then
+                    update (SendVote Bad) updatedModel
+                else if Touch.isRightSwipe 100 gesture then
+                    update (SendVote Good) updatedModel
+                else
+                    ( updatedModel, Cmd.none )
+
 
 
 ---- VIEW ----
@@ -154,8 +197,9 @@ view model =
     Html.div []
         (case model.validating of
             Playing clip clipList ->
-                [ Html.h1 [] [ Html.text "Is this sentence pronounced correctly?" ]
-                , viewClip clip model.duration model.currentTime
+                [ Html.h1 []
+                    [ Html.text "Is this sentence pronounced correctly?" ]
+                , viewClip clip model.duration model.currentTime (model.gesturePosition.x - model.gestureStart.x)
                 ]
 
             NotLoaded ->
@@ -168,8 +212,8 @@ view model =
         )
 
 
-viewClip : AudioClip -> Float -> Float -> Html.Html Msg
-viewClip clip duration currentTime =
+viewClip : AudioClip -> Float -> Float -> Float -> Html.Html Msg
+viewClip clip duration currentTime deltaX =
     let
         percentage =
             if duration /= 0 then
@@ -183,7 +227,7 @@ viewClip clip duration currentTime =
             (toString percentage)
                 ++ "%"
     in
-        Html.div []
+        Html.div [ Html.Attributes.style [ ( "position", "relative" ) ] ]
             [ Html.audio
                 [ Html.Attributes.autoplay True
                 , Html.Attributes.src clip.sound
@@ -199,7 +243,11 @@ viewClip clip duration currentTime =
                 [ Html.Attributes.style
                     [ ( "padding", "10px 0" )
                     , ( "position", "relative" )
+                    , ( "left", (toString deltaX) ++ "px" )
                     ]
+                , Touch.onStart SwipeStart
+                , Touch.onMove Swipe
+                , Touch.onEnd SwipeEnd
                 ]
                 [ Html.div
                     [ Html.Attributes.style
@@ -217,10 +265,10 @@ viewClip clip duration currentTime =
                 ]
             , Html.div []
                 [ Html.button
-                    [ Html.Events.onClick <| SendVote Bad clip ]
+                    [ Html.Events.onClick <| SendVote Bad ]
                     [ Html.text "No, pronounced incorrectly" ]
                 , Html.button
-                    [ Html.Events.onClick <| SendVote Good clip ]
+                    [ Html.Events.onClick <| SendVote Good ]
                     [ Html.text "Yes, pronounced correctly" ]
                 ]
             ]
