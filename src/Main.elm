@@ -233,57 +233,78 @@ viewClip clip duration currentTime deltaX =
             (toString percentage)
                 ++ "%"
     in
-        Html.div [ Html.Attributes.style [ ( "position", "relative" ) ] ]
-            [ Html.audio
-                [ Html.Attributes.autoplay True
-                , Html.Attributes.src clip.sound
-
-                -- , Html.Attributes.controls True
-                , onDurationChange DurationChange
-                , onPlay Play
-                , onEnded Ended
-                , onTimeUpdate TimeUpdate
+        Html.div
+            [ Html.Attributes.style
+                [ ( "overflow", "hidden" )
+                , ( "padding-top", "4px" )
                 ]
-                []
-            , Html.div
+            ]
+            [ Html.div
                 [ Html.Attributes.style
-                    [ ( "padding", "10px 0" )
-                    , ( "position", "relative" )
-                    , ( "left", (toString deltaX) ++ "px" )
+                    [ ( "position", "relative" )
+                    , ( "background-color"
+                      , if deltaX >= 0 then
+                            "#b7d43f"
+                        else if deltaX <= 0 then
+                            "#f00"
+                        else
+                            "#eee"
+                      )
+                    , ( "margin-bottom", "20px" )
                     ]
-                , Touch.onStart SwipeStart
-                , Touch.onMove Swipe
-                , Touch.onEnd SwipeEnd
-                , Html.Events.onClick ResetPlay
                 ]
-                [ Html.div
-                    [ Html.Attributes.style
-                        [ ( "background-color"
-                          , if deltaX >= 100 then
-                                "#b7d43f"
-                            else if deltaX <= -100 then
-                                "#f00"
-                            else
-                                "#eee"
-                          )
-                        , ( "height", "100%" )
-                        , ( "left", "0" )
-                        , ( "position", "absolute" )
-                        , ( "top", "0" )
-                        , ( "width", percentageAttributes )
-                        , ( "z-index", "-1000" )
-                        ]
+                [ Html.audio
+                    [ Html.Attributes.autoplay True
+                    , Html.Attributes.src clip.sound
+
+                    -- , Html.Attributes.controls True
+                    , onDurationChange DurationChange
+                    , onPlay Play
+                    , onEnded Ended
+                    , onTimeUpdate TimeUpdate
                     ]
                     []
-                , Html.text clip.text
+                , Html.div
+                    [ Html.Attributes.style
+                        [ ( "background-color", "white" )
+                        , ( "opacity", toString ((100 - (abs deltaX)) / 100) )
+                        , ( "padding", "10px 0" )
+                        , ( "position", "relative" )
+                        ]
+                    , Touch.onStart SwipeStart
+                    , Touch.onMove Swipe
+                    , Touch.onEnd SwipeEnd
+                    , Html.Events.onClick ResetPlay
+                    ]
+                    [ Html.div
+                        [ Html.Attributes.style
+                            [ ( "border-bottom", "4px solid #b7d43f" )
+                            , ( "border-top", "4px solid #b7d43f" )
+                            , ( "height", "100%" )
+                            , ( "left", "0" )
+                            , ( "position", "absolute" )
+                            , ( "top", "-4px" )
+                            , ( "width", percentageAttributes )
+                            ]
+                        ]
+                        []
+                    , Html.div
+                        [ Html.Attributes.style
+                            [ ( "position", "relative" )
+                            , ( "left", (toString deltaX) ++ "px" )
+                            ]
+                        ]
+                        [ Html.text clip.text
+                        ]
+                    ]
                 ]
             , Html.div []
                 [ Html.button
                     [ Html.Events.onClick <| SendVote Bad ]
-                    [ Html.text "No, pronounced incorrectly" ]
+                    [ Html.text "Bad, pronounced incorrectly" ]
                 , Html.button
                     [ Html.Events.onClick <| SendVote Good ]
-                    [ Html.text "Yes, pronounced correctly" ]
+                    [ Html.text "Good, pronounced correctly" ]
                 ]
             ]
 
