@@ -70,12 +70,13 @@ type alias Model =
     , gesture : Touch.Gesture
     , gestureStart : Touch.Position
     , gesturePosition : Touch.Position
+    , playing : Bool
     }
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model NotLoaded 0 0 Touch.blanco initPosition initPosition, getClips )
+    ( Model NotLoaded 0 0 Touch.blanco initPosition initPosition True, getClips )
 
 
 initPosition : Touch.Position
@@ -149,10 +150,10 @@ update msg model =
             ( { model | duration = duration }, Cmd.none )
 
         Play ->
-            ( model, Cmd.none )
+            ( { model | playing = True }, Cmd.none )
 
         Ended ->
-            ( model, Cmd.none )
+            ( { model | playing = False }, Cmd.none )
 
         TimeUpdate currentTime ->
             ( { model | currentTime = currentTime }, Cmd.none )
@@ -205,7 +206,27 @@ view model =
             Playing clip clipList ->
                 [ Html.p []
                     [ Html.text "Is this sentence pronounced correctly?" ]
-                , viewClip clip model.duration model.currentTime (model.gesturePosition.x - model.gestureStart.x)
+                , viewClip clip model.duration model.currentTime (model.gesturePosition.x - model.gestureStart.x) model.playing
+                , Html.span
+                    [ Html.Events.onClick <| SendVote Bad
+                    , Html.Attributes.style
+                        [ ( "font-size", "4em" )
+                        , ( "position", "absolute" )
+                        , ( "bottom", "10px" )
+                        , ( "left", "10px" )
+                        ]
+                    ]
+                    [ Html.text "👎" ]
+                , Html.span
+                    [ Html.Events.onClick <| SendVote Good
+                    , Html.Attributes.style
+                        [ ( "font-size", "4em" )
+                        , ( "position", "absolute" )
+                        , ( "bottom", "10px" )
+                        , ( "right", "10px" )
+                        ]
+                    ]
+                    [ Html.text "👍" ]
                 ]
 
             NotLoaded ->
@@ -218,8 +239,8 @@ view model =
         )
 
 
-viewClip : AudioClip -> Float -> Float -> Float -> Html.Html Msg
-viewClip clip duration currentTime deltaX =
+viewClip : AudioClip -> Float -> Float -> Float -> Bool -> Html.Html Msg
+viewClip clip duration currentTime deltaX playing =
     let
         percentage =
             if duration /= 0 then
@@ -295,20 +316,20 @@ viewClip clip duration currentTime deltaX =
                             ]
                         ]
                         [ Html.text clip.text
+                        , Html.div
+                            [ Html.Attributes.style
+                                [ ( "opacity", "0.2" )
+                                ]
+                            ]
+                            [ Html.text
+                                (if playing then
+                                    "🔈"
+                                 else
+                                    "🔄"
+                                )
+                            ]
                         ]
                     ]
-                ]
-            , Html.div [ Html.Attributes.style [ ( "font-size", "4em" ) ] ]
-                [ Html.span
-                    [ Html.Events.onClick <| SendVote Bad
-                    , Html.Attributes.style [ ( "font-size", "inherit" ), ( "margin-right", "2em" ) ]
-                    ]
-                    [ Html.text "👎" ]
-                , Html.span
-                    [ Html.Events.onClick <| SendVote Good
-                    , Html.Attributes.style [ ( "font-size", "inherit" ) ]
-                    ]
-                    [ Html.text "👍" ]
                 ]
             ]
 
