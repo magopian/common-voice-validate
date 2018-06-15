@@ -185,6 +185,8 @@ update msg model =
                     update (SendVote Bad) updatedModel
                 else if Touch.isRightSwipe 100 gesture then
                     update (SendVote Good) updatedModel
+                else if Touch.isTap gesture then
+                    update ResetPlay updatedModel
                 else
                     ( updatedModel, Cmd.none )
 
