@@ -1,4 +1,4 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Html
 import Html.Attributes
@@ -102,6 +102,7 @@ type Msg
     | SwipeStart Touch.Event
     | Swipe Touch.Event
     | SwipeEnd Touch.Event
+    | ResetPlay
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -187,6 +188,9 @@ update msg model =
                 else
                     ( updatedModel, Cmd.none )
 
+        ResetPlay ->
+            ( model, resetPlay () )
+
 
 
 ---- VIEW ----
@@ -248,6 +252,7 @@ viewClip clip duration currentTime deltaX =
                 , Touch.onStart SwipeStart
                 , Touch.onMove Swipe
                 , Touch.onEnd SwipeEnd
+                , Html.Events.onClick ResetPlay
                 ]
                 [ Html.div
                     [ Html.Attributes.style
@@ -302,6 +307,13 @@ onTimeUpdate msg =
 targetCurrentTime : Decode.Decoder Float
 targetCurrentTime =
     Decode.at [ "target", "currentTime" ] Decode.float
+
+
+
+---- PORTS ----
+
+
+port resetPlay : () -> Cmd msg
 
 
 
