@@ -256,7 +256,14 @@ viewClip clip duration currentTime deltaX =
                 ]
                 [ Html.div
                     [ Html.Attributes.style
-                        [ ( "background-color", "#b7d43f" )
+                        [ ( "background-color"
+                          , if deltaX >= 100 then
+                                "#b7d43f"
+                            else if deltaX <= -100 then
+                                "#f00"
+                            else
+                                "#eee"
+                          )
                         , ( "height", "100%" )
                         , ( "left", "0" )
                         , ( "position", "absolute" )
