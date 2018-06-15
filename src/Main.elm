@@ -203,17 +203,17 @@ view model =
     Html.div []
         (case model.validating of
             Playing clip clipList ->
-                [ Html.h1 []
+                [ Html.p []
                     [ Html.text "Is this sentence pronounced correctly?" ]
                 , viewClip clip model.duration model.currentTime (model.gesturePosition.x - model.gestureStart.x)
                 ]
 
             NotLoaded ->
-                [ Html.h1 [] [ Html.text "Loading audio clips, please wait..." ]
+                [ Html.p [] [ Html.text "Loading audio clips, please wait..." ]
                 ]
 
             NoClips ->
-                [ Html.h1 [] [ Html.text "No audio clips to validate" ]
+                [ Html.p [] [ Html.text "No audio clips to validate" ]
                 ]
         )
 
@@ -278,8 +278,8 @@ viewClip clip duration currentTime deltaX =
                     ]
                     [ Html.div
                         [ Html.Attributes.style
-                            [ ( "border-bottom", "4px solid #b7d43f" )
-                            , ( "border-top", "4px solid #b7d43f" )
+                            [ ( "border-bottom", "4px solid #eee" )
+                            , ( "border-top", "4px solid #eee" )
                             , ( "height", "100%" )
                             , ( "left", "0" )
                             , ( "position", "absolute" )
@@ -288,7 +288,7 @@ viewClip clip duration currentTime deltaX =
                             ]
                         ]
                         []
-                    , Html.div
+                    , Html.h1
                         [ Html.Attributes.style
                             [ ( "position", "relative" )
                             , ( "left", (toString deltaX) ++ "px" )
@@ -298,13 +298,17 @@ viewClip clip duration currentTime deltaX =
                         ]
                     ]
                 ]
-            , Html.div []
-                [ Html.button
-                    [ Html.Events.onClick <| SendVote Bad ]
-                    [ Html.text "Bad, pronounced incorrectly" ]
-                , Html.button
-                    [ Html.Events.onClick <| SendVote Good ]
-                    [ Html.text "Good, pronounced correctly" ]
+            , Html.div [ Html.Attributes.style [ ( "font-size", "4em" ) ] ]
+                [ Html.span
+                    [ Html.Events.onClick <| SendVote Bad
+                    , Html.Attributes.style [ ( "font-size", "inherit" ), ( "margin-right", "2em" ) ]
+                    ]
+                    [ Html.text "👎" ]
+                , Html.span
+                    [ Html.Events.onClick <| SendVote Good
+                    , Html.Attributes.style [ ( "font-size", "inherit" ) ]
+                    ]
+                    [ Html.text "👍" ]
                 ]
             ]
 
